@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  api:
+    build: ./app
+    links:
+      - database
+    container_name: ${API_CONTAINER_NAME}
+    restart: always
+    ports:
+      - '${API_EXPOSE_PORT}:5000'
+    expose:
+      - '${API_EXPOSE_PORT}'
+    volumes:
+      - type: bind
+        source: ./app
+        target: /code
+    depends_on:
+      - database
+    networks:
+      - service_network
+
+  database:
+    image: mariadb:10.7.1
+    container_name: ${DB_CONTAINER_NAME}
+    restart: always
+    command: --init-file /data/application/init.sql
+    environment:
+      MYSQL_ROOT_USER: ${DB_ROOT_USER}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    ports:
+      - '${DB_PORT}:3306'
+    expose:
+      - '${DB_PORT}'
+    volumes:
+      - type: bind
+        source: ./sql
+        target: /var/lib/mysql
+      - type: bind
+        source: ./sql/init.sql
+        target: /data/application/init.sql
+    networks:
+      - service_network
+
+networks:
+  service_network:
+    name: ${NETWORK_NAME}
+    driver: bridge
