@@ -1,3 +1,4 @@
+import models
 import config as Conf
 from flask import Flask
 from flask_cors import CORS
