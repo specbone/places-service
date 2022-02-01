@@ -1,10 +1,12 @@
-import models.model as mod
+from uuid import uuid4
+from fastapi_utils.guid_type import GUID
+
 from models.model import DB, Model
 
 class Task(DB.Model, Model):
     __tablename__ = "tasks"
 
-    uid = DB.Column(mod.GUID, primary_key=True, default=mod.uuid4)
+    uid = DB.Column(GUID, primary_key=True, default=uuid4)
     name = DB.Column(DB.String(25), nullable=False, index=True)
     status_id = DB.Column(DB.ForeignKey('status.uid'), nullable=False, index=True)
     message = DB.Column(DB.Text, nullable=True, default='')
@@ -12,6 +14,12 @@ class Task(DB.Model, Model):
     updated = DB.Column(DB.DateTime, default=Model.now())
 
     DB.UniqueConstraint(name)
+
+    def update_status(self, status_id, message=''):
+        self.status_id = status_id
+        self.message = message
+        self.updated = self.now()
+        self.update()
 
     def json(self, flat=True):
         return {
@@ -25,7 +33,10 @@ class Task(DB.Model, Model):
 
 
     @classmethod
-    def get_by_name(cls, name):
+    def get_by_name(cls, name, exact=False):
+        if exact:
+            return DB.session.query(cls).filter(cls.name == name).first()
+
         return DB.session.query(cls).filter(cls.name.like("%" +name + "%")).all()
 
     @classmethod

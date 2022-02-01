@@ -1,5 +1,3 @@
-from uuid import uuid4
-from fastapi_utils.guid_type import GUID
 from datetime import datetime
 from config import DB
 
