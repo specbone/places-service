@@ -22,6 +22,13 @@ class BgWorker(threading.Thread):
 
 class BgTask:
 
+    __taskname__ = ""
+
     # background work function to overwrite in inheriting class
-    def do_work(self, thread):
+    @classmethod
+    def do_work(cls, thread):
         pass
+
+class BgTaskStopException(Exception):
+    def __init__(self, name):
+        super().__init__("BgTask: {} has been stopped".format(name))

@@ -1,1 +1,1 @@
-from tools.bgworker import BgWorker, BgTask
+from tools.bgworker import BgWorker, BgTask, BgTaskStopException
