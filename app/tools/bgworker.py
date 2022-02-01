@@ -26,7 +26,7 @@ class BgTask:
 
     # background work function to overwrite in inheriting class
     @classmethod
-    def do_work(cls, thread):
+    def do_work(cls, thread=None):
         pass
 
 class BgTaskStopException(Exception):
