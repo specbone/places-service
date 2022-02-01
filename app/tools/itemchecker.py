@@ -1,16 +1,26 @@
 class ItemChecker:
 
     @classmethod
-    def json_item(cls, d, k, alt_return=None):
+    def dict_item(cls, d, *args, **kwargs):
+        alt_value = kwargs['alt_value'] if kwargs else None
         try:
-            return d[k]
+            if not d:
+                return alt_value
+
+            for a in args:
+                d = d[a]
+            return d
         except Exception:
-            return alt_return
+            return alt_value
 
     @classmethod
-    def json_item_from_array(cls, d, k, i, alt_return=None):
-        item = cls.json_item(d, k)
+    def array_item(cls, a, i, alt_value=None):
         try:
-            return item[i]
+            if not a:
+                return alt_value
+
+            return a[i]
         except Exception:
-            return alt_return
+            return alt_value
+
+    
