@@ -99,7 +99,7 @@ class Country(DB.Model, Model, BgTask):
 
                     common_name = ItemChecker.dict_item(json_item, 'name', 'common')
                     nativeName = ItemChecker.dict_item(json_item, 'name', 'nativeName')
-                    name = ItemChecker.dict_item(list(nativeName), 'common', alt_value=common_name) if nativeName else None
+                    name = ItemChecker.dict_item(nativeName, ItemChecker.array_item(list(nativeName), 0), 'common', alt_value=common_name) if nativeName else common_name
                     code = ItemChecker.dict_item(json_item, 'cca2')
                     code_2 = ItemChecker.dict_item(json_item, 'cca3')
                     code_3 = ItemChecker.dict_item(json_item, 'cioc')
