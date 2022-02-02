@@ -2,8 +2,11 @@ from uuid import uuid4
 from fastapi_utils.guid_type import GUID
 
 from models.model import DB, Model
+from models.task import Task
+from models.status import Status
+from tools import BgTask, BgTaskStopException, ItemChecker
 
-class State(DB.Model, Model):
+class State(DB.Model, Model, BgTask):
     __tablename__ = "states"
 
     uid = DB.Column(GUID, primary_key=True, default=uuid4)
@@ -43,5 +46,9 @@ class State(DB.Model, Model):
     @classmethod
     def get_by_country(cls, country_id):
         return DB.session.query(cls).filter(cls.country_id == country_id).all()
+
+    @classmethod
+    def do_work(cls, thread=None):
+        pass
 
 
