@@ -1,4 +1,5 @@
 import models
+import apis
 import config as Conf
 
 from flask import Flask
@@ -15,6 +16,8 @@ Conf.DB.app = app
 Conf.DB.init_app(app)
 Conf.DB.create_all()
 Initializer.init_all()
+
+app.register_blueprint(apis.CountryAPI.blueprint, url_prefix="/country")
 
 if __name__ == "__main__":
     app.run(host=Conf.APP_DEFAULT_HOST, port=Conf.APP_DEFAULT_PORT)
