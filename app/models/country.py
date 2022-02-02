@@ -1,3 +1,4 @@
+import time
 import requests
 import json
 
@@ -95,7 +96,7 @@ class Country(DB.Model, Model, BgTask):
             try:
                 for json_item in json_response:
                     if thread and thread.is_stopped():
-                        raise BgTaskStopException
+                        raise BgTaskStopException(thread.name)
 
                     common_name = ItemChecker.dict_item(json_item, 'name', 'common')
                     nativeName = ItemChecker.dict_item(json_item, 'name', 'nativeName')

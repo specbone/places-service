@@ -96,12 +96,14 @@ class CountryAPI:
     @blueprint.route('/task/stop', methods = ['POST'])
     def stop_task():
         item = Task.get_by_name(Country.__taskname__, exact=True)
+        if not item:
+            return Response.NOT_FOUND_404()
+
         if item.status.value == 1:
             CountryAPI.worker.stop()
             item = Task.get_by_name(Country.__taskname__, exact=True)
-            return Response.OK_200(item.json())
 
-        return Response.ACCEPTED_202("Task not running")
+        return Response.OK_200(item.json())
 
 
     @blueprint.route('/<uid>', methods = ['PUT'])
