@@ -24,5 +24,8 @@ class Response:
     def CONFLICT_409(content=ITEM_EXITS):   
         return make_response(jsonify(message = content), 409)
 
+    def UNPROCESSABLE_ENTITY_422(content):   
+        return make_response(jsonify(message = content), 422)
+
     def INTERNAL_ERROR(content=UNKOWN_INTERNAL_ERROR):
         return make_response(jsonify(message = content), 500)

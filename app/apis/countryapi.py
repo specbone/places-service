@@ -1,23 +1,16 @@
 from flask import Blueprint, request
 from apis.response import Response
+from apis.api import API
 from tools import ItemChecker, BgWorker
 from models import Country, Task, Status
 
 class CountryAPI:
 
     blueprint = Blueprint('CountryAPI', __name__)
-    worker = BgWorker(Country.do_work)
+    __worker__ = BgWorker(print("Not Implemented"))
 
     @blueprint.route('/', methods = ['GET'])
     def get_all():
-
-        def get_findings(l):
-            flat_list = [item for sublist in l for item in sublist]
-
-            if ItemChecker.has_duplicates(flat_list):
-                return Response.OK_200([item.json() for item in ItemChecker.get_duplicates(flat_list)])
-            else:
-                return Response.OK_200([item.json() for item in flat_list])
 
         # Optional Args
         name = request.args.get('name')
@@ -32,7 +25,7 @@ class CountryAPI:
         code and request_list.append(Country.get_by_code(code))
         region and request_list.append(Country.get_by_region(region))
 
-        return Response.OK_200([{}]) if ItemChecker.has_empty_params(request_list, any=True) else get_findings(request_list)
+        return Response.OK_200([{}]) if ItemChecker.has_empty_params(request_list, any=True) else API.get_findings(request_list)
 
 
     @blueprint.route('/<uid>', methods = ['GET'])
@@ -89,7 +82,8 @@ class CountryAPI:
                 return Response.INTERNAL_ERROR()
 
         item.update_status(Status.get_by_value(1).uid)
-        CountryAPI.worker.start()
+        CountryAPI.__worker__ = BgWorker(Country.do_work)
+        CountryAPI.__worker__.start()
         return Response.OK_200(item.json())
 
 
@@ -100,7 +94,7 @@ class CountryAPI:
             return Response.NOT_FOUND_404()
 
         if item.status.value == 1:
-            CountryAPI.worker.stop()
+            CountryAPI.__worker__.stop()
             item = Task.get_by_name(Country.__taskname__, exact=True)
 
         return Response.OK_200(item.json())

@@ -18,6 +18,7 @@ Conf.DB.create_all()
 Initializer.init_all()
 
 app.register_blueprint(apis.CountryAPI.blueprint, url_prefix="/country")
+app.register_blueprint(apis.StateAPI.blueprint, url_prefix="/state")
 
 if __name__ == "__main__":
     app.run(host=Conf.APP_DEFAULT_HOST, port=Conf.APP_DEFAULT_PORT)

@@ -85,7 +85,7 @@ class Country(DB.Model, Model, BgTask):
         ).all()
 
     @classmethod
-    def do_work(cls, thread=None):
+    def do_work(cls, thread=None, kwargs=None):
         task = Task.get_by_name(cls.__taskname__, exact=True)
         if task:
             url = 'https://restcountries.com/v3.1/all'

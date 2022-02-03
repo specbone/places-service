@@ -2,15 +2,15 @@ import threading
 
 class BgWorker(threading.Thread):
 
-    def __init__(self, function):
+    def __init__(self, function, kwargs=None):
         threading.Thread.__init__(self)
         self.runnable = function # Function passed for background work
         self.daemon = True
+        self.kwargs = kwargs
         self.stop_event = threading.Event() # Event set in background work function, used to stop 
 
     def run(self):
-        # Pass thread object for stop event check
-        self.runnable(self)
+        self.runnable(self, self.kwargs)
 
     def stop(self):
         self.stop_event.set()
@@ -26,7 +26,7 @@ class BgTask:
 
     # background work function to overwrite in inheriting class
     @classmethod
-    def do_work(cls, thread=None):
+    def do_work(cls, thread=None, kwargs=None):
         pass
 
 class BgTaskStopException(Exception):

@@ -1,3 +1,6 @@
+import requests
+import json
+
 from uuid import uuid4
 from fastapi_utils.guid_type import GUID
 
@@ -8,6 +11,7 @@ from tools import BgTask, BgTaskStopException, ItemChecker
 
 class State(DB.Model, Model, BgTask):
     __tablename__ = "states"
+    __taskname__ = "state_collector"
 
     uid = DB.Column(GUID, primary_key=True, default=uuid4)
     name = DB.Column(DB.String(25), nullable=False, index=True)
@@ -35,6 +39,14 @@ class State(DB.Model, Model, BgTask):
 
         return json
 
+    def __eq__(self, other):
+        return self.name == other.name and \
+                self.code == other.code and \
+                self.country_id == other.country_id
+
+    def __hash__(self):
+        return hash(('name', self.name, 'code', self.code))
+
     @classmethod
     def get_by_name(cls, name):
         return DB.session.query(cls).filter(cls.name.like("%" + name + "%")).all()
@@ -48,7 +60,32 @@ class State(DB.Model, Model, BgTask):
         return DB.session.query(cls).filter(cls.country_id == country_id).all()
 
     @classmethod
-    def do_work(cls, thread=None):
-        pass
+    def do_work(cls, thread=None, kwargs=None):
+        task = Task.get_by_name(cls.__taskname__, exact=True)
+        if task:
+            url = 'https://data.opendatasoft.com/api/v2/catalog/datasets/geonames-postal-code%40public/exports/json?where=country_code%3D%27' + kwargs['code'] + '%27&limit=-1&offset=0&timezone=UTC'
+            response = requests.get(url)
+            json_response = json.loads(response.content)
+            
 
+            try:
+                i = 1
+                states = set()
+                for json_item in json_response:
+                    if thread and thread.is_stopped():
+                        raise BgTaskStopException(thread.name)
 
+                    name = ItemChecker.dict_item(json_item, 'admin_name1')
+                    code = ItemChecker.dict_item(json_item, 'admin_code1')
+                    s = cls(name=name, code=code, country_id=kwargs['uid'])
+
+                    if s not in states:
+                        s.create()
+                        states.add(s)
+                    
+                    i += 1
+
+                task.update_status(Status.get_by_value(2).uid)
+            except BgTaskStopException as e:
+                print(str(e))
+                task.update_status(Status.get_by_value(5).uid, str(e))
