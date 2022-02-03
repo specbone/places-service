@@ -14,7 +14,7 @@ class State(DB.Model, Model, BgTask):
     __taskname__ = "state_collector"
 
     uid = DB.Column(GUID, primary_key=True, default=uuid4)
-    name = DB.Column(DB.String(25), nullable=False, index=True)
+    name = DB.Column(DB.String(100), nullable=False, index=True)
     code = DB.Column(DB.String(10), nullable=False, index=True)
     country_id = DB.Column(DB.ForeignKey('countries.uid'), nullable=False, index=True)
     created = DB.Column(DB.DateTime, default=Model.now())

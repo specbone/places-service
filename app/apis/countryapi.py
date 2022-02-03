@@ -130,18 +130,7 @@ class CountryAPI:
             return Response.ACCEPTED_202(Response.NO_UPDATE_REQUIRED)
 
         # Update set args
-        if name: item.name = c.name
-        if code: item.code = c.code
-        if common_name: item.common_name = c.common_name 
-        if code_2: item.code_2 = c.code_2 
-        if code_3: item.code_3 = c.code_3 
-        if capital: item.capital = c.capital 
-        if region: item.region = c.region 
-        if subregion: item.subregion = c.subregion 
-        if population: item.population = c.population 
-        item.updated = item.now()
-
-        if item.update():
+        if item.__update__(c):
             return Response.OK_200(item.json())
 
         return Response.INTERNAL_ERROR()
