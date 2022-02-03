@@ -14,8 +14,8 @@ class Country(DB.Model, Model, BgTask):
     __taskname__ = "country_collector"
 
     uid = DB.Column(GUID, primary_key=True, default=uuid4)
-    name = DB.Column(DB.String(25), nullable=False, index=True) # Shall be native name
-    common_name = DB.Column(DB.String(25), nullable=False, index=True)
+    name = DB.Column(DB.String(100), nullable=False, index=True) # Shall be native name
+    common_name = DB.Column(DB.String(100), nullable=False, index=True)
     code = DB.Column(DB.String(2), nullable=False, index=True)
     code_2 = DB.Column(DB.String(3), index=True, default='')
     code_3 = DB.Column(DB.String(3), index=True, default='')
@@ -29,6 +29,19 @@ class Country(DB.Model, Model, BgTask):
     DB.UniqueConstraint(code)
     DB.UniqueConstraint(common_name)
     states = DB.relationship("State", backref='country', lazy=True)
+
+    def __update__(self, model):
+        self.name = model.name if model.name else self.name 
+        self.common_name = model.common_name if model.common_name else self.common_name 
+        self.code = model.code if model.code else self.code 
+        self.code_2 = model.code_2 if model.code_2 else self.code_2 
+        self.code_3 = model.code_3 if model.code_3 else self.code_3 
+        self.capital = model.capital if model.capital else self.capital 
+        self.region = model.region if model.region else self.region 
+        self.subregion = model.subregion if model.subregion else self.subregion 
+        self.population = model.population if model.population else self.population 
+        self.updated = self.now()
+        return self.update()
 
     def json(self, flat=True):
         json = {
@@ -70,7 +83,10 @@ class Country(DB.Model, Model, BgTask):
         ).all()
 
     @classmethod
-    def get_by_code(cls, code):
+    def get_by_code(cls, code, exact=False):
+        if exact:
+            return DB.session.query(cls).filter(cls.code == code).first()
+
         return DB.session.query(cls).filter(
             (cls.code.like(code + "%")) | 
             (cls.code_2.like(code + "%")) | 
@@ -109,8 +125,10 @@ class Country(DB.Model, Model, BgTask):
                     population = ItemChecker.dict_item(json_item, 'population')
 
                     c = cls(name=name, code=code, common_name=common_name, code_2=code_2, code_3=code_3, capital=capital, region=region, subregion=subregion, population=population)
-                    c.create()
-
+                    if not c.create():
+                        origin_c = cls.get_by_code(code, exact=True)
+                        origin_c.__update__(c)
+                    
                 task.update_status(Status.get_by_value(2).uid)
             except BgTaskStopException as e:
                 print(str(e))

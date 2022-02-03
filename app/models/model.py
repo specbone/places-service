@@ -1,3 +1,4 @@
+import sys
 from datetime import datetime
 from config import DB
 
@@ -10,7 +11,7 @@ class Model:
             DB.session.refresh(self)
             return True
         except Exception as e:
-            print("On Create: {}\nMessage: {}".format(type(e).__name__ , str(e)))
+            print("On Create: {}\nMessage: {}".format(type(e).__name__ , str(e)), file=sys.stderr)
             DB.session.rollback()
             return False
 
@@ -20,7 +21,7 @@ class Model:
             DB.session.refresh(self)
             return True
         except Exception as e:
-            print("On Update: {}\nMessage: {}".format(type(e).__name__ , str(e)))
+            print("On Update: {}\nMessage: {}".format(type(e).__name__ , str(e)), file=sys.stderr)
             DB.session.rollback()
             return False
 
@@ -30,9 +31,12 @@ class Model:
             DB.session.commit()
             return True
         except Exception as e:
-            print("On Delete: {}\nMessage: {}".format(type(e).__name__ , str(e)))
+            print("On Delete: {}\nMessage: {}".format(type(e).__name__ , str(e)), file=sys.stderr)
             DB.session.rollback()
             return False
+
+    def __update__(self, model):
+        pass
 
     @classmethod
     def now(self):
