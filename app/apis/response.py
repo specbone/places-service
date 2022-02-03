@@ -12,6 +12,9 @@ class Response:
     def OK_200(content):
         return make_response(jsonify(content), 200)
 
+    def OK_201(content):
+        return make_response(jsonify(content), 201)
+
     def ACCEPTED_202(content):
         return make_response(jsonify(message = content), 202)
     

@@ -70,7 +70,7 @@ class CountryAPI:
         population = ItemChecker.dict_item(request_data, 'population')
 
         item = Country(name=name, code=code, common_name=common_name, code_2=code_2, code_3=code_3, capital=capital, region=region, subregion=subregion, population=population)
-        return Response.OK_200(item.json()) if item.create() else Response.CONFLICT_409()
+        return Response.OK_201(item.json()) if item.create() else Response.CONFLICT_409()
 
 
     @blueprint.route('/task/start', methods = ['POST'])
@@ -80,11 +80,13 @@ class CountryAPI:
             item = Task(name=Country.__taskname__, status_id=Status.get_by_value(0).uid)
             if not item.create():
                 return Response.INTERNAL_ERROR()
+        elif item.status.value == 1:
+            return Response.OK_200(item.json())
 
         item.update_status(Status.get_by_value(1).uid)
         CountryAPI.__worker__ = BgWorker(Country.do_work)
         CountryAPI.__worker__.start()
-        return Response.OK_200(item.json())
+        return Response.OK_201(item.json())
 
 
     @blueprint.route('/task/stop', methods = ['POST'])
@@ -131,7 +133,7 @@ class CountryAPI:
 
         # Update set args
         if item.__update__(c):
-            return Response.OK_200(item.json())
+            return Response.OK_201(item.json())
 
         return Response.INTERNAL_ERROR()
 

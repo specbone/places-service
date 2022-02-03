@@ -64,7 +64,7 @@ class StateAPI:
             return Response.UNPROCESSABLE_ENTITY_422("No valid country_id")
 
         item = State(name=name, code=code, country_id=country.uid)
-        return Response.OK_200(item.json()) if item.create() else Response.CONFLICT_409()
+        return Response.OK_201(item.json()) if item.create() else Response.CONFLICT_409()
 
 
     @blueprint.route('/task/start/<country_id>', methods = ['POST'])
@@ -74,6 +74,8 @@ class StateAPI:
             item = Task(name=State.__taskname__, status_id=Status.get_by_value(0).uid)
             if not item.create():
                 return Response.INTERNAL_ERROR()
+        elif item.status.value == 1:
+            return Response.OK_200(item.json())
 
         country = Country.get_by_uid(country_id)
         if not country:
@@ -82,7 +84,7 @@ class StateAPI:
         item.update_status(Status.get_by_value(1).uid)
         StateAPI.__worker__ = BgWorker(State.do_work, kwargs={'uid':country.uid, 'code':country.code})
         StateAPI.__worker__.start()
-        return Response.OK_200(item.json())
+        return Response.OK_201(item.json())
 
 
     @blueprint.route('/task/stop', methods = ['POST'])
@@ -129,7 +131,7 @@ class StateAPI:
 
         # Update set args
         if item.__update__(s):
-            return Response.OK_200(item.json())
+            return Response.OK_201(item.json())
 
         return Response.INTERNAL_ERROR()
 

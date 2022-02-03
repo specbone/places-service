@@ -64,7 +64,7 @@ class CountyAPI:
             return Response.UNPROCESSABLE_ENTITY_422("No valid state_id")
 
         item = County(name=name, code=code, state_id=state.uid)
-        return Response.OK_200(item.json()) if item.create() else Response.CONFLICT_409()
+        return Response.OK_201(item.json()) if item.create() else Response.CONFLICT_409()
 
 
     @blueprint.route('/task/start', methods = ['POST'])
@@ -74,6 +74,8 @@ class CountyAPI:
             item = Task(name=County.__taskname__, status_id=Status.get_by_value(0).uid)
             if not item.create():
                 return Response.INTERNAL_ERROR()
+        elif item.status.value == 1:
+            return Response.OK_200(item.json())
 
         # Semi-Rquired Args
         state_id = request.args.get('state_id')
@@ -96,7 +98,7 @@ class CountyAPI:
         item.update_status(Status.get_by_value(1).uid)
         CountyAPI.__worker__ = BgWorker(County.do_work, kwargs=kwargs)
         CountyAPI.__worker__.start()
-        return Response.OK_200(item.json())
+        return Response.OK_201(item.json())
 
 
     @blueprint.route('/task/stop', methods = ['POST'])

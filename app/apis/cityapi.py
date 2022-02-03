@@ -60,7 +60,7 @@ class CityAPI:
             return Response.UNPROCESSABLE_ENTITY_422("No valid county_id")
 
         item = City(name=name, code=code, county_id=county.uid)
-        return Response.OK_200(item.json()) if item.create() else Response.CONFLICT_409()
+        return Response.OK_201(item.json()) if item.create() else Response.CONFLICT_409()
 
 
     @blueprint.route('/task/start', methods = ['POST'])
@@ -70,6 +70,8 @@ class CityAPI:
             item = Task(name=City.__taskname__, status_id=Status.get_by_value(0).uid)
             if not item.create():
                 return Response.INTERNAL_ERROR()
+        elif item.status.value == 1:
+            return Response.OK_200(item.json())
 
         # Semi-Rquired Args
         county_id = request.args.get('county_id')
@@ -99,7 +101,7 @@ class CityAPI:
         item.update_status(Status.get_by_value(1).uid)
         CityAPI.__worker__ = BgWorker(City.do_work, kwargs=kwargs)
         CityAPI.__worker__.start()
-        return Response.OK_200(item.json())
+        return Response.OK_201(item.json())
 
 
     @blueprint.route('/task/stop', methods = ['POST'])
@@ -146,7 +148,7 @@ class CityAPI:
 
         # Update set args
         if item.__update__(c):
-            return Response.OK_200(item.json())
+            return Response.OK_201(item.json())
 
         return Response.INTERNAL_ERROR()
 
