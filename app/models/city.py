@@ -72,7 +72,7 @@ class City(DB.Model, Model, BgTask):
 
     @classmethod
     def do_work(cls, thread=None, kwargs=None):
-        def work(country_code, state_code, county_name, county_id):
+        def work(thread, country_code, state_code, county_name, county_id):
             url = 'https://data.opendatasoft.com/api/v2/catalog/datasets/geonames-postal-code%40public/exports/json?where=country_code%3D%27' + country_code + '%27%20AND%20admin_code1%3D%27' + state_code + '%27%20AND%20admin_name3%3D%27' + county_name + '%27&limit=-1&offset=0&timezone=UTC'
             response = requests.get(url)
             json_response = json.loads(response.content)
@@ -107,7 +107,7 @@ class City(DB.Model, Model, BgTask):
                     state_code = county.state.code
                     county_name = county.name
                     county_id = county.uid
-                    work(country_code, state_code, county_name, county_id)
+                    work(thread, country_code, state_code, county_name, county_id)
         
                 elif type == 'state':
                     state = State.get_by_uid(uid)
@@ -116,7 +116,7 @@ class City(DB.Model, Model, BgTask):
                         state_code = state.code
                         county_name = county.name
                         county_id = county.uid
-                        work(country_code, state_code, county_name, county_id)
+                        work(thread, country_code, state_code, county_name, county_id)
 
                 elif type == 'country':
                     country = Country.get_by_uid(uid)
@@ -126,7 +126,7 @@ class City(DB.Model, Model, BgTask):
                             state_code = state.code
                             county_name = county.name
                             county_id = county.uid
-                            work(country_code, state_code, county_name, county_id)
+                            work(thread, country_code, state_code, county_name, county_id)
 
             
                 task.update_status(Status.get_by_value(2).uid)

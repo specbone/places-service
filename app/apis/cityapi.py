@@ -24,7 +24,7 @@ class CityAPI:
         code and request_list.append(City.get_by_code(code))
         county_id and request_list.append(City.get_by_county(county_id))
 
-        return Response.OK_200([{}]) if ItemChecker.has_empty_params(request_list, any=True) else API.get_findings(request_list)
+        return Response.OK_200([{}]) if ItemChecker.has_empty_params(request_list, any_item=True) else API.get_findings(request_list)
 
 
     @blueprint.route('/<uid>', methods = ['GET'])
@@ -76,6 +76,8 @@ class CityAPI:
         state_id = request.args.get('state_id')
         country_id = request.args.get('country_id')
 
+        if ItemChecker.has_empty_params([county_id, state_id, country_id]):
+            return Response.BAD_REQUEST_400(Response.MISSING_ARGS)
 
         if county_id:
             county = County.get_by_uid(county_id)

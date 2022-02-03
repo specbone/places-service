@@ -16,7 +16,7 @@ class StateAPI:
         code = request.args.get('code')
         country_id = request.args.get('country_id')
 
-        if ItemChecker.has_empty_params([name, code]):
+        if ItemChecker.has_empty_params([name, code, country_id]):
             return Response.OK_200([item.json() for item in State.get_all()])
 
         request_list = []
@@ -24,7 +24,7 @@ class StateAPI:
         code and request_list.append(State.get_by_code(code))
         country_id and request_list.append(State.get_by_country(country_id))
 
-        return Response.OK_200([{}]) if ItemChecker.has_empty_params(request_list, any=True) else API.get_findings(request_list)
+        return Response.OK_200([{}]) if ItemChecker.has_empty_params(request_list, any_item=True) else API.get_findings(request_list)
 
 
     @blueprint.route('/<uid>', methods = ['GET'])

@@ -2,7 +2,7 @@ from flask import Blueprint, request
 from apis.response import Response
 from apis.api import API
 from tools import ItemChecker, BgWorker
-from models import County, Task, Status, State
+from models import County, Task, Status, State, Country
 
 class CountyAPI:
 
@@ -16,7 +16,7 @@ class CountyAPI:
         code = request.args.get('code')
         state_id = request.args.get('state_id')
 
-        if ItemChecker.has_empty_params([name, code]):
+        if ItemChecker.has_empty_params([name, code, state_id]):
             return Response.OK_200([item.json() for item in County.get_all()])
 
         request_list = []
@@ -24,7 +24,7 @@ class CountyAPI:
         code and request_list.append(County.get_by_code(code))
         state_id and request_list.append(County.get_by_state(state_id))
 
-        return Response.OK_200([{}]) if ItemChecker.has_empty_params(request_list, any=True) else API.get_findings(request_list)
+        return Response.OK_200([{}]) if ItemChecker.has_empty_params(request_list, any_item=True) else API.get_findings(request_list)
 
 
     @blueprint.route('/<uid>', methods = ['GET'])
@@ -67,20 +67,34 @@ class CountyAPI:
         return Response.OK_200(item.json()) if item.create() else Response.CONFLICT_409()
 
 
-    @blueprint.route('/task/start/<state_id>', methods = ['POST'])
-    def start_task(state_id):
+    @blueprint.route('/task/start', methods = ['POST'])
+    def start_task():
         item = Task.get_by_name(County.__taskname__, exact=True)
         if not item:
             item = Task(name=County.__taskname__, status_id=Status.get_by_value(0).uid)
             if not item.create():
                 return Response.INTERNAL_ERROR()
 
-        state = State.get_by_uid(state_id)
-        if not state:
-            return Response.UNPROCESSABLE_ENTITY_422("No valid state_id")
+        # Semi-Rquired Args
+        state_id = request.args.get('state_id')
+        country_id = request.args.get('country_id')
+
+        if ItemChecker.has_empty_params([state_id, country_id]):
+            return Response.BAD_REQUEST_400(Response.MISSING_ARGS)
+
+        if state_id:
+            state = State.get_by_uid(state_id)
+            if not state:
+                return Response.UNPROCESSABLE_ENTITY_422("No valid state_id")
+            kwargs={'by':'state', 'uid':state.uid}
+        else:
+            country = Country.get_by_uid(country_id)
+            if not country:
+                return Response.UNPROCESSABLE_ENTITY_422("No valid country_id")
+            kwargs={'by':'country', 'uid':country.uid}
 
         item.update_status(Status.get_by_value(1).uid)
-        CountyAPI.__worker__ = BgWorker(County.do_work, kwargs={'uid':state.uid, 'code':state.code, 'country_code':state.country.code})
+        CountyAPI.__worker__ = BgWorker(County.do_work, kwargs=kwargs)
         CountyAPI.__worker__.start()
         return Response.OK_200(item.json())
 
@@ -99,7 +113,7 @@ class CountyAPI:
 
 
     @blueprint.route('/<uid>', methods = ['PUT'])
-    def update_state(uid):
+    def update_county(uid):
         item = County.get_by_uid(uid)
         if not item:
             return Response.NOT_FOUND_404()
@@ -135,7 +149,7 @@ class CountyAPI:
 
 
     @blueprint.route('/<uid>', methods = ['DELETE'])
-    def delete_state(uid):
+    def delete_county(uid):
         item = County.get_by_uid(uid)
         if not item:
             return Response.NOT_FOUND_404()

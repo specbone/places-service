@@ -7,6 +7,8 @@ from fastapi_utils.guid_type import GUID
 from models.model import DB, Model
 from models.task import Task
 from models.status import Status
+from models.state import State
+from models.country import Country
 from tools import BgTask, BgTaskStopException, ItemChecker
 
 class County(DB.Model, Model, BgTask):
@@ -74,29 +76,49 @@ class County(DB.Model, Model, BgTask):
 
     @classmethod
     def do_work(cls, thread=None, kwargs=None):
-        task = Task.get_by_name(cls.__taskname__, exact=True)
-        if task:
-            url = 'https://data.opendatasoft.com/api/v2/catalog/datasets/geonames-postal-code%40public/exports/json?where=country_code%3D%27' + kwargs['country_code'] + '%27%20AND%20admin_code1%3D%27' + kwargs['code'] + '%27&limit=-1&offset=0&timezone=UTC'
+        def work(thread, country_code, state_code, state_id):
+            url = 'https://data.opendatasoft.com/api/v2/catalog/datasets/geonames-postal-code%40public/exports/json?where=country_code%3D%27' + country_code + '%27%20AND%20admin_code1%3D%27' + state_code + '%27&limit=-1&offset=0&timezone=UTC'
             response = requests.get(url)
             json_response = json.loads(response.content)
+
+            counties = set()
+            for json_item in json_response:
+                if thread and thread.is_stopped():
+                    raise BgTaskStopException(thread.name)
+    
+                name = ItemChecker.dict_item(json_item, 'admin_name3')
+                code = ItemChecker.dict_item(json_item, 'admin_code3')
+                if not name or not code:
+                    continue     
+
+                c = cls(name=name, code=code, state_id=state_id)
+                if c not in counties:
+                    counties.add(c)
+                    if not c.create():
+                        origin_c = cls.get_unique_contraint(c.name, c.code, c.state_id)
+                        origin_c.__update__(c)
+
+
+        task = Task.get_by_name(cls.__taskname__, exact=True)
+        if task:
+            type = kwargs['by']
+            uid = kwargs['uid']
             
             try:
-                counties = set()
-                for json_item in json_response:
-                    if thread and thread.is_stopped():
-                        raise BgTaskStopException(thread.name)
-    
-                    name = ItemChecker.dict_item(json_item, 'admin_name3')
-                    code = ItemChecker.dict_item(json_item, 'admin_code3')
-                    if not name or not code:
-                        continue     
-
-                    c = cls(name=name, code=code, state_id=kwargs['uid'])
-                    if c not in counties:
-                        counties.add(c)
-                        if not c.create():
-                            origin_c = cls.get_unique_contraint(c.name, c.code, c.state_id)
-                            origin_c.__update__(c)               
+                if type == 'state':
+                    state = State.get_by_uid(uid)
+                    country_code = state.country.code
+                    state_code = state.code
+                    state_id = state.uid
+                    work(thread, country_code, state_code, state_id)
+        
+                elif type == 'country':
+                    country = Country.get_by_uid(uid)
+                    for state in country.states:
+                        country_code = country.code
+                        state_code = state.code
+                        state_id = state.uid
+                        work(thread, country_code, state_code, state_id)         
 
                 task.update_status(Status.get_by_value(2).uid)
             except BgTaskStopException as e:

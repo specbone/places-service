@@ -24,10 +24,10 @@ class ItemChecker:
             return alt_value
 
     @classmethod
-    def has_empty_params(cls, l, any=False):
-        if any:
+    def has_empty_params(cls, l, any_item=False):
+        if any_item:
             return any(True if not li else False for li in l)
-            
+
         return not any(True if li else False for li in l)
     
     @classmethod

@@ -25,7 +25,7 @@ class CountryAPI:
         code and request_list.append(Country.get_by_code(code))
         region and request_list.append(Country.get_by_region(region))
 
-        return Response.OK_200([{}]) if ItemChecker.has_empty_params(request_list, any=True) else API.get_findings(request_list)
+        return Response.OK_200([{}]) if ItemChecker.has_empty_params(request_list, any_item=True) else API.get_findings(request_list)
 
 
     @blueprint.route('/<uid>', methods = ['GET'])
