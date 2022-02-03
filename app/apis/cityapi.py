@@ -73,35 +73,39 @@ class CityAPI:
         elif item.status.value == 1:
             return Response.OK_200(item.json())
 
-        # Semi-Rquired Args
-        county_id = request.args.get('county_id')
-        state_id = request.args.get('state_id')
-        country_id = request.args.get('country_id')
+        try:
+            # Semi-Rquired Args
+            county_id = request.args.get('county_id')
+            state_id = request.args.get('state_id')
+            country_id = request.args.get('country_id')
 
-        if ItemChecker.has_empty_params([county_id, state_id, country_id]):
-            return Response.BAD_REQUEST_400(Response.MISSING_ARGS)
+            if ItemChecker.has_empty_params([county_id, state_id, country_id]):
+                return Response.BAD_REQUEST_400(Response.MISSING_ARGS)
 
-        if county_id:
-            county = County.get_by_uid(county_id)
-            if not county:
-                return Response.UNPROCESSABLE_ENTITY_422("No valid country_id")
-            kwargs={'by':'county', 'uid':county.uid}
-        elif state_id:
-            state = State.get_by_uid(state_id)
-            if not state:
-                return Response.UNPROCESSABLE_ENTITY_422("No valid state_id")
-            kwargs={'by':'state', 'uid':state.uid}
-        else:
-            country = County.get_by_uid(country_id)
-            if not country:
-                return Response.UNPROCESSABLE_ENTITY_422("No valid country_id")
-            kwargs={'by':'country', 'uid':country.uid}
+            if county_id:
+                county = County.get_by_uid(county_id)
+                if not county:
+                    return Response.UNPROCESSABLE_ENTITY_422("No valid country_id")
+                kwargs={'by':'county', 'uid':county.uid}
+            elif state_id:
+                state = State.get_by_uid(state_id)
+                if not state:
+                    return Response.UNPROCESSABLE_ENTITY_422("No valid state_id")
+                kwargs={'by':'state', 'uid':state.uid}
+            else:
+                country = County.get_by_uid(country_id)
+                if not country:
+                    return Response.UNPROCESSABLE_ENTITY_422("No valid country_id")
+                kwargs={'by':'country', 'uid':country.uid}
 
-
-        item.update_status(Status.get_by_value(1).uid)
-        CityAPI.__worker__ = BgWorker(City.do_work, kwargs=kwargs)
-        CityAPI.__worker__.start()
-        return Response.OK_201(item.json())
+            item.update_status(Status.get_by_value(1).uid)
+            CityAPI.__worker__ = BgWorker(City.do_work, kwargs=kwargs)
+            CityAPI.__worker__.start()
+            return Response.OK_201(item.json())
+        except Exception as e:
+            CityAPI.__worker__.stop() # Stop if still doing something
+            item.update_status(Status.get_by_value(3).uid, str(e))
+            return Response.INTERNAL_ERROR(item.json())
 
 
     @blueprint.route('/task/stop', methods = ['POST'])

@@ -77,28 +77,34 @@ class CountyAPI:
         elif item.status.value == 1:
             return Response.OK_200(item.json())
 
-        # Semi-Rquired Args
-        state_id = request.args.get('state_id')
-        country_id = request.args.get('country_id')
+        try:
+            # Semi-Rquired Args
+            state_id = request.args.get('state_id')
+            country_id = request.args.get('country_id')
 
-        if ItemChecker.has_empty_params([state_id, country_id]):
-            return Response.BAD_REQUEST_400(Response.MISSING_ARGS)
+            if ItemChecker.has_empty_params([state_id, country_id]):
+                return Response.BAD_REQUEST_400(Response.MISSING_ARGS)
 
-        if state_id:
-            state = State.get_by_uid(state_id)
-            if not state:
-                return Response.UNPROCESSABLE_ENTITY_422("No valid state_id")
-            kwargs={'by':'state', 'uid':state.uid}
-        else:
-            country = Country.get_by_uid(country_id)
-            if not country:
-                return Response.UNPROCESSABLE_ENTITY_422("No valid country_id")
-            kwargs={'by':'country', 'uid':country.uid}
+            if state_id:
+                state = State.get_by_uid(state_id)
+                if not state:
+                    return Response.UNPROCESSABLE_ENTITY_422("No valid state_id")
+                kwargs={'by':'state', 'uid':state.uid}
+            else:
+                country = Country.get_by_uid(country_id)
+                if not country:
+                    return Response.UNPROCESSABLE_ENTITY_422("No valid country_id")
+                kwargs={'by':'country', 'uid':country.uid}
 
-        item.update_status(Status.get_by_value(1).uid)
-        CountyAPI.__worker__ = BgWorker(County.do_work, kwargs=kwargs)
-        CountyAPI.__worker__.start()
-        return Response.OK_201(item.json())
+
+            item.update_status(Status.get_by_value(1).uid)
+            CountyAPI.__worker__ = BgWorker(County.do_work, kwargs=kwargs)
+            CountyAPI.__worker__.start()
+            return Response.OK_201(item.json())
+        except Exception as e:
+            CountyAPI.__worker__.stop() # Stop if still doing something
+            item.update_status(Status.get_by_value(3).uid, str(e))
+            return Response.INTERNAL_ERROR(item.json())
 
 
     @blueprint.route('/task/stop', methods = ['POST'])

@@ -84,9 +84,15 @@ class CountryAPI:
             return Response.OK_200(item.json())
 
         item.update_status(Status.get_by_value(1).uid)
-        CountryAPI.__worker__ = BgWorker(Country.do_work)
-        CountryAPI.__worker__.start()
-        return Response.OK_201(item.json())
+
+        try:
+            CountryAPI.__worker__ = BgWorker(Country.do_work)
+            CountryAPI.__worker__.start()
+            return Response.OK_201(item.json())
+        except Exception as e:
+            CountryAPI.__worker__.stop() # Stop if still doing something
+            item.update_status(Status.get_by_value(3).uid, str(e))
+            return Response.INTERNAL_ERROR(item.json())
 
 
     @blueprint.route('/task/stop', methods = ['POST'])

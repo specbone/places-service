@@ -77,14 +77,19 @@ class StateAPI:
         elif item.status.value == 1:
             return Response.OK_200(item.json())
 
-        country = Country.get_by_uid(country_id)
-        if not country:
-            return Response.UNPROCESSABLE_ENTITY_422("No valid country_id")
+        try:
+            country = Country.get_by_uid(country_id)
+            if not country:
+                return Response.UNPROCESSABLE_ENTITY_422("No valid country_id")
 
-        item.update_status(Status.get_by_value(1).uid)
-        StateAPI.__worker__ = BgWorker(State.do_work, kwargs={'uid':country.uid, 'code':country.code})
-        StateAPI.__worker__.start()
-        return Response.OK_201(item.json())
+            item.update_status(Status.get_by_value(1).uid)
+            StateAPI.__worker__ = BgWorker(State.do_work, kwargs={'uid':country.uid, 'code':country.code})
+            StateAPI.__worker__.start()
+            return Response.OK_201(item.json())
+        except Exception as e:
+            StateAPI.__worker__.stop() # Stop if still doing something
+            item.update_status(Status.get_by_value(3).uid, str(e))
+            return Response.INTERNAL_ERROR(item.json())
 
 
     @blueprint.route('/task/stop', methods = ['POST'])
