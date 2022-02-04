@@ -71,8 +71,8 @@ class StateAPI(BgTask):
         return Response.OK_201(item.json()) if item.create() else Response.CONFLICT_409()
 
 
-    @blueprint.route('/task/start/<country_id>', methods = ['POST'])
-    def start_task(country_id):
+    @blueprint.route('/task/start/', methods = ['POST'])
+    def start_task():
         created = False
         item = Task.get_by_name(StateAPI.__taskname__, exact=True)
         if not item:
@@ -85,6 +85,11 @@ class StateAPI(BgTask):
             return Response.OK_200(item.json())
 
         try:
+            #Required Args
+            country_id = request.args.get('country_id')
+            if not country_id:
+                return Response.BAD_REQUEST_400(Response.MISSING_REQUIRED_ARGS)
+
             country = Country.get_by_uid(country_id)
             if not country:
                 return Response.UNPROCESSABLE_ENTITY_422("No valid country_id")
