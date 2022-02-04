@@ -21,6 +21,7 @@ app.register_blueprint(apis.CountryAPI.blueprint, url_prefix="/country")
 app.register_blueprint(apis.StateAPI.blueprint, url_prefix="/state")
 app.register_blueprint(apis.CountyAPI.blueprint, url_prefix="/county")
 app.register_blueprint(apis.CityAPI.blueprint, url_prefix="/city")
+app.register_blueprint(apis.TaskAPI.blueprint, url_prefix="/task")
 
 if __name__ == "__main__":
     app.run(host=Conf.APP_DEFAULT_HOST, port=Conf.APP_DEFAULT_PORT)
