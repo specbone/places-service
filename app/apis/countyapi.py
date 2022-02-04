@@ -1,13 +1,17 @@
+import requests
+import json
+
 from flask import Blueprint, request
 from apis.response import Response
 from apis.api import API
-from tools import ItemChecker, BgWorker
+from tools import ItemChecker, BgWorker, BgTask, BgTaskStopException
 from models import County, Task, Status, State, Country
 
-class CountyAPI:
+class CountyAPI(BgTask):
 
     blueprint = Blueprint('CountyAPI', __name__)
     __worker__ = BgWorker(print("Not Implemented"))
+    __taskname__ = "county_collector"
 
     @blueprint.route('/', methods = ['GET'])
     def get_all():
@@ -69,11 +73,14 @@ class CountyAPI:
 
     @blueprint.route('/task/start', methods = ['POST'])
     def start_task():
-        item = Task.get_by_name(County.__taskname__, exact=True)
+        created = False
+        item = Task.get_by_name(CountyAPI.__taskname__, exact=True)
         if not item:
-            item = Task(name=County.__taskname__, status_id=Status.get_by_value(0).uid)
+            item = Task(name=CountyAPI.__taskname__, status_id=Status.get_by_value(0).uid)
             if not item.create():
                 return Response.INTERNAL_ERROR()
+            else:
+                created = True
         elif item.status.value == 1:
             return Response.OK_200(item.json())
 
@@ -98,9 +105,9 @@ class CountyAPI:
 
 
             item.update_status(Status.get_by_value(1).uid)
-            CountyAPI.__worker__ = BgWorker(County.do_work, kwargs=kwargs)
+            CountyAPI.__worker__ = BgWorker(CountyAPI.do_work, kwargs=kwargs)
             CountyAPI.__worker__.start()
-            return Response.OK_201(item.json())
+            return Response.OK_201(item.json()) if created else Response.OK_200(item.json())
         except Exception as e:
             CountyAPI.__worker__.stop() # Stop if still doing something
             item.update_status(Status.get_by_value(3).uid, str(e))
@@ -109,13 +116,13 @@ class CountyAPI:
 
     @blueprint.route('/task/stop', methods = ['POST'])
     def stop_task():
-        item = Task.get_by_name(County.__taskname__, exact=True)
+        item = Task.get_by_name(CountyAPI.__taskname__, exact=True)
         if not item:
             return Response.NOT_FOUND_404()
 
         if item.status.value == 1:
             CountyAPI.__worker__.stop()
-            item = Task.get_by_name(County.__taskname__, exact=True)
+            item = Task.get_by_name(CountyAPI.__taskname__, exact=True)
 
         return Response.OK_200(item.json())
 
@@ -166,3 +173,54 @@ class CountyAPI:
             return Response.OK_200({'uid': item.uid, 'name': item.name, 'code': item.code})
             
         return Response.INTERNAL_ERROR()
+
+    @classmethod
+    def do_work(cls, thread=None, kwargs=None):
+        def work(thread, country_code, state_code, state_id):
+            url = 'https://data.opendatasoft.com/api/v2/catalog/datasets/geonames-postal-code%40public/exports/json?where=country_code%3D%27' + country_code + '%27%20AND%20admin_code1%3D%27' + state_code + '%27&limit=-1&offset=0&timezone=UTC'
+            response = requests.get(url)
+            json_response = json.loads(response.content)
+
+            counties = set()
+            for json_item in json_response:
+                if thread and thread.is_stopped():
+                    raise BgTaskStopException(thread.name)
+    
+                name = ItemChecker.dict_item(json_item, 'admin_name3')
+                code = ItemChecker.dict_item(json_item, 'admin_code3')
+                if not name or not code:
+                    continue     
+
+                c = County(name=name, code=code, state_id=state_id)
+                if c not in counties:
+                    counties.add(c)
+                    if not c.create():
+                        origin_c = County.get_unique_contraint(c.name, c.code, c.state_id)
+                        origin_c.__update__(c)
+
+
+        task = Task.get_by_name(cls.__taskname__, exact=True)
+        if task:
+            type = kwargs['by']
+            uid = kwargs['uid']
+            
+            try:
+                if type == 'state':
+                    state = State.get_by_uid(uid)
+                    country_code = state.country.code
+                    state_code = state.code
+                    state_id = state.uid
+                    work(thread, country_code, state_code, state_id)
+        
+                elif type == 'country':
+                    country = Country.get_by_uid(uid)
+                    for state in country.states:
+                        country_code = country.code
+                        state_code = state.code
+                        state_id = state.uid
+                        work(thread, country_code, state_code, state_id)         
+
+                task.update_status(Status.get_by_value(2).uid)
+            except BgTaskStopException as e:
+                print(str(e))
+                task.update_status(Status.get_by_value(5).uid, str(e))
