@@ -1,13 +1,17 @@
+import requests
+import json
+
 from flask import Blueprint, request
 from apis.response import Response
 from apis.api import API
-from tools import ItemChecker, BgWorker
+from tools import ItemChecker, BgWorker, BgTask, BgTaskStopException
 from models import Country, Task, Status
 
-class CountryAPI:
+class CountryAPI(BgTask):
 
     blueprint = Blueprint('CountryAPI', __name__)
     __worker__ = BgWorker(print("Not Implemented"))
+    __taskname__ = "country_collector"
 
     @blueprint.route('/', methods = ['GET'])
     def get_all():
@@ -42,7 +46,7 @@ class CountryAPI:
 
     @blueprint.route('/task', methods = ['GET'])
     def get_task():
-        item = Task.get_by_name(Country.__taskname__, exact=True)
+        item = Task.get_by_name(CountryAPI.__taskname__, exact=True)
         return Response.OK_200(item.json()) if item else Response.NOT_FOUND_404()
 
 
@@ -75,20 +79,23 @@ class CountryAPI:
 
     @blueprint.route('/task/start', methods = ['POST'])
     def start_task():
-        item = Task.get_by_name(Country.__taskname__, exact=True)
+        created = False
+        item = Task.get_by_name(CountryAPI.__taskname__, exact=True)
         if not item:
-            item = Task(name=Country.__taskname__, status_id=Status.get_by_value(0).uid)
+            item = Task(name=CountryAPI.__taskname__, status_id=Status.get_by_value(0).uid)
             if not item.create():
                 return Response.INTERNAL_ERROR()
+            else:
+                created = True
         elif item.status.value == 1:
             return Response.OK_200(item.json())
 
         item.update_status(Status.get_by_value(1).uid)
 
         try:
-            CountryAPI.__worker__ = BgWorker(Country.do_work)
+            CountryAPI.__worker__ = BgWorker(CountryAPI.do_work)
             CountryAPI.__worker__.start()
-            return Response.OK_201(item.json())
+            return Response.OK_201(item.json()) if created else Response.OK_200(item.json())
         except Exception as e:
             CountryAPI.__worker__.stop() # Stop if still doing something
             item.update_status(Status.get_by_value(3).uid, str(e))
@@ -97,13 +104,13 @@ class CountryAPI:
 
     @blueprint.route('/task/stop', methods = ['POST'])
     def stop_task():
-        item = Task.get_by_name(Country.__taskname__, exact=True)
+        item = Task.get_by_name(CountryAPI.__taskname__, exact=True)
         if not item:
             return Response.NOT_FOUND_404()
 
         if item.status.value == 1:
             CountryAPI.__worker__.stop()
-            item = Task.get_by_name(Country.__taskname__, exact=True)
+            item = Task.get_by_name(CountryAPI.__taskname__, exact=True)
 
         return Response.OK_200(item.json())
 
@@ -139,7 +146,7 @@ class CountryAPI:
 
         # Update set args
         if item.__update__(c):
-            return Response.OK_201(item.json())
+            return Response.OK_200(item.json())
 
         return Response.INTERNAL_ERROR()
 
@@ -154,3 +161,37 @@ class CountryAPI:
             return Response.OK_200({'uid': item.uid, 'name': item.name, 'code': item.code})
             
         return Response.INTERNAL_ERROR()
+
+    @classmethod
+    def do_work(cls, thread=None, kwargs=None):
+        task = Task.get_by_name(cls.__taskname__, exact=True)
+        if task:
+            url = 'https://restcountries.com/v3.1/all'
+            response = requests.get(url)
+            json_response = json.loads(response.content)
+
+            try:
+                for json_item in json_response:
+                    if thread and thread.is_stopped():
+                        raise BgTaskStopException(thread.name)
+
+                    common_name = ItemChecker.dict_item(json_item, 'name', 'common')
+                    nativeName = ItemChecker.dict_item(json_item, 'name', 'nativeName')
+                    name = ItemChecker.dict_item(nativeName, ItemChecker.array_item(list(nativeName), 0), 'common', alt_value=common_name) if nativeName else common_name
+                    code = ItemChecker.dict_item(json_item, 'cca2')
+                    code_2 = ItemChecker.dict_item(json_item, 'cca3')
+                    code_3 = ItemChecker.dict_item(json_item, 'cioc')
+                    capital = ItemChecker.array_item(ItemChecker.dict_item(json_item, 'capital'), 0)
+                    region = ItemChecker.dict_item(json_item, 'region')
+                    subregion = ItemChecker.dict_item(json_item, 'subregion')
+                    population = ItemChecker.dict_item(json_item, 'population')
+
+                    c = Country(name=name, code=code, common_name=common_name, code_2=code_2, code_3=code_3, capital=capital, region=region, subregion=subregion, population=population)
+                    if not c.create():
+                        origin_c = Country.get_by_code(code, exact=True)
+                        origin_c.__update__(c)
+                    
+                task.update_status(Status.get_by_value(2).uid)
+            except BgTaskStopException as e:
+                print(str(e))
+                task.update_status(Status.get_by_value(5).uid, str(e))

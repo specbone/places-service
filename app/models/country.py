@@ -1,17 +1,10 @@
-import requests
-import json
-
 from uuid import uuid4
 from fastapi_utils.guid_type import GUID
 
 from models.model import DB, Model
-from models.task import Task
-from models.status import Status
-from tools import BgTask, BgTaskStopException, ItemChecker
 
-class Country(DB.Model, Model, BgTask):
+class Country(DB.Model, Model):
     __tablename__ = "countries"
-    __taskname__ = "country_collector"
 
     uid = DB.Column(GUID, primary_key=True, default=uuid4)
     name = DB.Column(DB.String(100), nullable=False, index=True) # Shall be native name
@@ -99,38 +92,4 @@ class Country(DB.Model, Model, BgTask):
             (cls.region.like("%" + region + "%")) | 
             (cls.subregion.like("%" + region + "%"))
         ).all()
-
-    @classmethod
-    def do_work(cls, thread=None, kwargs=None):
-        task = Task.get_by_name(cls.__taskname__, exact=True)
-        if task:
-            url = 'https://restcountries.com/v3.1/all'
-            response = requests.get(url)
-            json_response = json.loads(response.content)
-
-            try:
-                for json_item in json_response:
-                    if thread and thread.is_stopped():
-                        raise BgTaskStopException(thread.name)
-
-                    common_name = ItemChecker.dict_item(json_item, 'name', 'common')
-                    nativeName = ItemChecker.dict_item(json_item, 'name', 'nativeName')
-                    name = ItemChecker.dict_item(nativeName, ItemChecker.array_item(list(nativeName), 0), 'common', alt_value=common_name) if nativeName else common_name
-                    code = ItemChecker.dict_item(json_item, 'cca2')
-                    code_2 = ItemChecker.dict_item(json_item, 'cca3')
-                    code_3 = ItemChecker.dict_item(json_item, 'cioc')
-                    capital = ItemChecker.array_item(ItemChecker.dict_item(json_item, 'capital'), 0)
-                    region = ItemChecker.dict_item(json_item, 'region')
-                    subregion = ItemChecker.dict_item(json_item, 'subregion')
-                    population = ItemChecker.dict_item(json_item, 'population')
-
-                    c = cls(name=name, code=code, common_name=common_name, code_2=code_2, code_3=code_3, capital=capital, region=region, subregion=subregion, population=population)
-                    if not c.create():
-                        origin_c = cls.get_by_code(code, exact=True)
-                        origin_c.__update__(c)
-                    
-                task.update_status(Status.get_by_value(2).uid)
-            except BgTaskStopException as e:
-                print(str(e))
-                task.update_status(Status.get_by_value(5).uid, str(e))
 
