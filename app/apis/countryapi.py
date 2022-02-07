@@ -162,6 +162,7 @@ class CountryAPI(BgTask):
             
         return Response.INTERNAL_ERROR()
 
+
     @classmethod
     def do_work(cls, thread=None, kwargs=None):
         task = Task.get_by_name(cls.__taskname__, exact=True)

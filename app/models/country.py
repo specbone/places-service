@@ -19,8 +19,7 @@ class Country(DB.Model, Model):
     created = DB.Column(DB.DateTime, default=Model.now())
     updated = DB.Column(DB.DateTime, default=Model.now())
 
-    DB.UniqueConstraint(code)
-    DB.UniqueConstraint(common_name)
+    DB.UniqueConstraint(common_name, code)
     states = DB.relationship("State", backref='country', lazy=True)
 
     def __update__(self, model):
@@ -67,6 +66,12 @@ class Country(DB.Model, Model):
                 self.region == other.region and \
                 self.subregion == other.subregion and \
                 self.population == other.population
+
+    def __hash__(self):
+        return hash((
+            'name', self.name, 
+            'common_name', self.common_name, 
+            'code', self.code))
 
     @classmethod
     def get_by_name(cls, name):
