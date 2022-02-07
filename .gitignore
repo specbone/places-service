@@ -132,7 +132,7 @@ dmypy.json
 !sql
 sql/*
 !sql/.inf
-!sql/views/
+!sql/views.sql
 
 # Configuration
 config.bak
