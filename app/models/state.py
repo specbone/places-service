@@ -3,6 +3,8 @@ from fastapi_utils.guid_type import GUID
 
 from models.model import DB, Model
 
+import sys
+
 class State(DB.Model, Model):
     __tablename__ = "states"
 
@@ -21,7 +23,7 @@ class State(DB.Model, Model):
         self.code = model.code if model.code else self.code 
         self.country_id = model.country_id if model.country_id else self.country_id 
         self.updated = self.now()
-        self.update()
+        return self.update()
 
 
     def json(self, flat=True):

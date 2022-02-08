@@ -8,6 +8,7 @@ class Response:
     ITEM_NOT_FOUND = "Item not found"
     ITEM_EXITS = "Item already exists"
     UNKOWN_INTERNAL_ERROR = "Whoopsie daisy! Something went wrong"
+    INVALID_UID = "No valid uid format"
 
     def OK_200(content):
         return make_response(jsonify(content), 200)

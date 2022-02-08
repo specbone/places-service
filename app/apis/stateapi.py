@@ -4,7 +4,7 @@ import json
 from flask import Blueprint, request
 from apis.response import Response
 from apis.api import API
-from tools import ItemChecker, BgWorker, BgTask, BgTaskStopException
+from tools import ItemChecker, BgWorker, BgTask, BgTaskStopException, Validator
 from models import State, Task, Status, Country
 
 class StateAPI(BgTask):
@@ -20,12 +20,15 @@ class StateAPI(BgTask):
         code = request.args.get('code')
         country_id = request.args.get('country_id')
 
+        if not Validator.is_valid_uuid(country_id):
+            return Response.BAD_REQUEST_400(Response.INVALID_UID)
+
         if ItemChecker.has_empty_params([name, code, country_id]):
             return Response.OK_200([item.json() for item in State.get_all()])
 
         request_list = []
         name and request_list.append(State.get_by_name(name))
-        code and request_list.append(State.get_by_code(code))
+        code and request_list.append(State.get_by_code(code, exact=False))
         country_id and request_list.append(State.get_by_country(country_id))
 
         return Response.OK_200([{}]) if ItemChecker.has_empty_params(request_list, any_item=True) else API.get_findings(request_list)
@@ -33,14 +36,21 @@ class StateAPI(BgTask):
 
     @blueprint.route('/<uid>', methods = ['GET'])
     def get_state(uid):
+        if not Validator.is_valid_uuid(uid):
+            return Response.BAD_REQUEST_400(Response.INVALID_UID)
+
         item = State.get_by_uid(uid)
         return Response.OK_200(item.json()) if item else Response.NOT_FOUND_404()
 
     
     @blueprint.route('/<uid>/counties', methods = ['GET'])
     def get_state_counties(uid):
+        if not Validator.is_valid_uuid(uid):
+            return Response.BAD_REQUEST_400(Response.INVALID_UID)
+        
         item = State.get_by_uid(uid)
         return Response.OK_200(item.json(flat=False)) if item else Response.NOT_FOUND_404()
+
 
     @blueprint.route('/task', methods = ['GET'])
     def get_task():
@@ -62,6 +72,9 @@ class StateAPI(BgTask):
             country_id = request_data['country_id']
         except Exception:
             return Response.BAD_REQUEST_400(Response.MISSING_REQUIRED_ARGS)
+
+        if not Validator.is_valid_uuid(country_id):
+            return Response.BAD_REQUEST_400(Response.INVALID_UID)
 
         country = Country.get_by_uid(country_id)
         if not country:
@@ -119,6 +132,9 @@ class StateAPI(BgTask):
 
     @blueprint.route('/<uid>', methods = ['PUT'])
     def update_state(uid):
+        if not Validator.is_valid_uuid(uid):
+            return Response.BAD_REQUEST_400(Response.INVALID_UID)
+
         item = State.get_by_uid(uid)
         if not item:
             return Response.NOT_FOUND_404()
@@ -155,6 +171,9 @@ class StateAPI(BgTask):
 
     @blueprint.route('/<uid>', methods = ['DELETE'])
     def delete_state(uid):
+        if not Validator.is_valid_uuid(uid):
+            return Response.BAD_REQUEST_400(Response.INVALID_UID)
+            
         item = State.get_by_uid(uid)
         if not item:
             return Response.NOT_FOUND_404()
