@@ -4,7 +4,7 @@ import json
 from flask import Blueprint, request
 from apis.response import Response
 from apis.api import API
-from tools import ItemChecker, BgWorker, BgTask, BgTaskStopException
+from tools import ItemChecker, BgWorker, BgTask, BgTaskStopException, Validator
 from models import Country, Task, Status
 
 class CountryAPI(BgTask):
@@ -34,12 +34,18 @@ class CountryAPI(BgTask):
 
     @blueprint.route('/<uid>', methods = ['GET'])
     def get_country(uid):
+        if not Validator.is_valid_uuid(uid):
+            return Response.BAD_REQUEST_400(Response.INVALID_UID)
+
         item = Country.get_by_uid(uid)
         return Response.OK_200(item.json()) if item else Response.NOT_FOUND_404()
 
     
     @blueprint.route('/<uid>/states', methods = ['GET'])
     def get_country_states(uid):
+        if not Validator.is_valid_uuid(uid):
+            return Response.BAD_REQUEST_400(Response.INVALID_UID)
+
         item = Country.get_by_uid(uid)
         return Response.OK_200(item.json(flat=False)) if item else Response.NOT_FOUND_404()
 
@@ -117,6 +123,9 @@ class CountryAPI(BgTask):
 
     @blueprint.route('/<uid>', methods = ['PUT'])
     def update_country(uid):
+        if not Validator.is_valid_uuid(uid):
+            return Response.BAD_REQUEST_400(Response.INVALID_UID)
+
         item = Country.get_by_uid(uid)
         if not item:
             return Response.NOT_FOUND_404()
@@ -153,6 +162,9 @@ class CountryAPI(BgTask):
 
     @blueprint.route('/<uid>', methods = ['DELETE'])
     def delete_country(uid):
+        if not Validator.is_valid_uuid(uid):
+            return Response.BAD_REQUEST_400(Response.INVALID_UID)
+            
         item = Country.get_by_uid(uid)
         if not item:
             return Response.NOT_FOUND_404()
